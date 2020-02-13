@@ -9,7 +9,7 @@
   "license": "BSD",
   "readmeFilename": "README.md",
   "dependencies": {
-    "jquery": "^1.11",
+    "jquery": "^3.4",
     "webuploader": "^0.1.8"
   }
 }
