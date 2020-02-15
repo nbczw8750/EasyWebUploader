@@ -1,6 +1,7 @@
 # EasyWebUploader
 
 ## 使用说明
+### 上传
 html页面
 ```
 <input type="file" name="pics" id="test2"  value="{ url:'mock/1.jpg',value:1 },{ url:'mock/1.jpg',value:2 }" />
@@ -28,6 +29,21 @@ var w2 = new EasyWebUploader({
     }
 }).create();
 ```
+
+### 仅显示
+
+html页面
+```
+<input type="file" name="pics" id="test2"  value="{ url:'mock/1.jpg',value:1 },{ url:'mock/chunkCheck.json',value:2 }" />
+```
+
+js实例化
+```
+var w2 = new EasyWebUploader({
+    'elem':"#test2"
+}).show();
+```
+
 
 ## 参数说明
 

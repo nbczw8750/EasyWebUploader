@@ -72,6 +72,15 @@ class EasyWebUploader {
         });
         this.theme.init(); //初始化页面效果 按钮
 
+    }
+
+    /**
+     * webuploader实例化
+     * @returns {*}
+     */
+    create(){
+        // 实例化数据
+        this.theme.create();
         let data = this.theme.getOriValue(); //初始化数据
         for(let i in data){
             data[i].name = data[i].name || data[i].url.substring(data[i].url.lastIndexOf("/")+1) || "";
@@ -82,12 +91,8 @@ class EasyWebUploader {
             this.theme.renderItem(false,file); //初始化文件
             this.theme.setData(file,data[i]); //初始化文件信息
         }
-    }
 
-
-    create(){
-        // TODO 生成webuploader实例化
-
+        // 生成webuploader实例化
         if (!WebUploader.Uploader.support()) {
             var error = "上传控件不支持您的浏览器！请尝试升级flash版本或者使用Chrome引擎的浏览器。<a target='_blank' href='http://se.360.cn'>下载页面</a>";
             if (window.console) {
@@ -105,6 +110,21 @@ class EasyWebUploader {
         this.theme.setValue();//设置数据库存储的值
         this.initEvent();
         this.$elem = this.theme.$elem;
+        return this;
+    }
+
+    show(){
+        let data = this.theme.getOriValue(); //初始化数据
+        for(let i in data){
+            data[i].name = data[i].name || data[i].url.substring(data[i].url.lastIndexOf("/")+1) || "";
+
+            let file = new WebUploader.File(data[i]);
+            // //此处是关键，将文件状态改为'已上传完成'
+            file.setStatus('complete');
+            this.theme.renderItem(false,file); //初始化文件
+            this.theme.setData(file,data[i]); //初始化文件信息
+        }
+        this.theme.show();
         return this;
     }
 
@@ -388,16 +408,23 @@ class EasyWebUploaderPicTheme{
         $widget.attr("id",this.$elem.attr("id"));
         $widget.attr("class",this.$elem.attr("class")).addClass("easywebuploader");
         $widget.attr("value",this.$elem.attr("value"));
-        if (this.$elem.attr("name")){
-            $widget.append("<input name='"+this.$elem.attr("name")+"' type='hidden'>");
-            $widget.attr("name",this.$elem.attr("name"));
-        }
+        $widget.attr("name",this.$elem.attr("name"));
         this.$elem.replaceWith($widget);
         this.$elem = $widget;
 
 
-        this.build();
         return this
+    }
+
+    create(){
+        if (this.$elem.attr("name")){
+            this.$elem.append("<input name='"+this.$elem.attr("name")+"' type='hidden'>");
+        }
+        this.build();
+
+    }
+    show(){
+        this.$elem.addClass("show");
     }
 
     /**
@@ -428,18 +455,6 @@ class EasyWebUploaderPicTheme{
         //TODO 生成html结构
         let addBtnTpl = '<div class="file-item-picker"> <div class="picker-btn">+</div> <div class="queued-message"></div></div>';
         this.$elem.append(addBtnTpl);
-        // let value = this.getOriValue();
-        // if (value){
-        //     for(let i in value){
-        //         value[i].name = value[i].name || value[i].url.substring(value[i].url.lastIndexOf("/")+1) || "";
-        //         let file = new WebUploader.File(value[i]);
-        //         // //此处是关键，将文件状态改为'已上传完成'
-        //         file.setStatus('complete');
-        //         this.renderItem(false,file);
-        //         this.setData(file,value);
-        //     }
-        //
-        // }
     }
 
     getFileCount(){
@@ -600,41 +615,43 @@ class EasyWebUploaderPicTheme{
             if(/(.jpg|.png|.gif|.bmp|.jpeg)$/.test(name.toLocaleLowerCase())) {
                 $preview = $('<img src="'+ data.source.url + '"/>');
             } else {
-                $preview = this.getThumbErrorPreview();
+                $preview = _this.getThumbErrorPreview(data.source.url);
             }
             $item.attr("id",data.id );
             $item.find(".file-preview").html($preview);
         } else {
             $item.attr("id",data.id);
-            this.showPreview($item,data);
+            _this.showPreview($item,data);
         }
         $item.find(".file-info").attr("title",name).html(name);
         // $item.find(".file-preview").html(preview);
-        this.$elem.find(".file-item-picker").before($item);
+        this.$elem.append($item);
         $item.find(".file-delete").click(function () {
             _this.deleteFileEvent(data);
         });
         return $item;
     }
+
+    /**
+     * 上传文件显示效果
+     * @param $item
+     * @param file
+     */
     showPreview($item, file){
         let $preview = $('<img />');
         $item.find(".file-preview").html($preview);
-        // 缩略图大小
-        // var thumbnailWidth = this.getActualThumbnailWidth(), thumbnailHeight = this.getActualThumbnailHeight();
-        // this.setItemStyle($item);  //设置item宽高
         let self = this;
         this.uploader.makeThumb(file, function (error, src) {
             if (error) {
                 $preview.replaceWith(self.getThumbErrorPreview());
-                // $preview.replaceWith(self.getThumbErrorPreview(file.name, self.thumbnailHeight, self.thumbnailWidth));
                 return;
             }
             $preview.attr('src', src);
 
         });
     }
-    getThumbErrorPreview(){
-        return $('不能预览');
+    getThumbErrorPreview(url ){
+        return $('<a href="'+url+'">不能预览</a>');
     }
     setUrl(file,url){
         let $item = this.getItem(file);

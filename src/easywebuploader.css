@@ -36,6 +36,9 @@
 .easywebuploader .file-item .file-delete:hover{
     color: #ffffff;
 }
+.easywebuploader.show .file-item .file-delete{
+    display: none;
+}
 .easywebuploader .file-item .file-info{
     line-height: 26px;
     text-indent: 5px;
@@ -138,6 +141,10 @@
 .easywebuploader .file-item .file-preview img{
     width: 100%;
     vertical-align: top;
+}
+.easywebuploader .file-item .file-preview a{
+    text-decoration: none;
+    color: #949390;
 }
 .easywebuploader .file-item-picker{
     width:140px;

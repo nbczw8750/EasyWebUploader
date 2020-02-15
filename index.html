@@ -26,12 +26,17 @@
     </div>
     <div class="file-item-picker "><div class="picker-btn">+</div> <div class="queued-message">最多只能传3个</div></div>
 </div>
-<input type="file" name="pics" id="test2"  value="{ url:'mock/1.jpg',value:1 },{ url:'mock/1.jpg',value:2 }" />
+<input type="file" name="pics" id="test1"  value="{ url:'mock/1.jpg',value:1 },{ url:'mock/1.jpg',value:2 }" />
 <!--
 <input type="file" name="pics" id="test2" />
 -->
 
+<input type="file" name="pics" id="test2"  value="{ url:'mock/1.jpg',value:1 },{ url:'mock/chunkCheck.json',value:2 }" />
+
 <script>
+    new EasyWebUploader({
+        "elem":"#test1"
+    }).show();
 
 var w2 = new EasyWebUploader({
     'elem':"#test2",
