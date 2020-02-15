@@ -77,7 +77,26 @@
     -o-transition: width .6s ease;
     transition: width .6s ease;
 }
+
+.easywebuploader .file-item.queued .file-progress .file-progress-bar {
+    float: left;
+    width: 0;
+    height: 100%;
+    font-size: 12px;
+    line-height: 20px;
+    color: #fff;
+    text-align: center;
+    background-color: #a3b3b3;
+    -webkit-box-shadow: inset 0 -1px 0 rgba(0,0,0,.15);
+    box-shadow: inset 0 -1px 0 rgba(0,0,0,.15);
+    -webkit-transition: width .6s ease;
+    -o-transition: width .6s ease;
+    transition: width .6s ease;
+}
 .easywebuploader .file-item.progress .file-progress{
+    display: block;
+}
+.easywebuploader .file-item.queued .file-progress{
     display: block;
 }
 .easywebuploader .file-item .file-message{
@@ -97,7 +116,7 @@
     white-space: nowrap;
     text-overflow: ellipsis;
 }
-.easywebuploader .file-item.complete .file-message {
+.easywebuploader .file-item.complete .file-message,.easywebuploader .file-item.queued .file-message {
     display: block;
 }
 .easywebuploader .file-item .file-message.file-message-success {
@@ -105,6 +124,9 @@
 }
 .easywebuploader .file-item .file-message.file-message-error {
     background-color: #f43838;
+}
+.easywebuploader .file-item .file-message.file-message-info {
+    background-color: #3890f4;
 }
 .easywebuploader .file-item .file-preview{
     width: 100%;

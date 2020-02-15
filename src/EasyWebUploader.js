@@ -5,7 +5,17 @@ class EasyWebUploader {
             "elem": "",
             success:null,
             error:null,
-            complete:null
+            complete:null,
+            response:{
+                statusName:'code',
+                statusCode:{
+                    success:1,
+                    error:0
+                },
+                msgName:'msg',
+                dataName:'data'
+            }
+
         };
         this.options = Object.assign(this.options,opt);
 
@@ -31,14 +41,8 @@ class EasyWebUploader {
 
         this.$elem = $(this.options.elem);
 
-        if (!WebUploader.Uploader.support()) {
-            var error = "上传控件不支持您的浏览器！请尝试升级flash版本或者使用Chrome引擎的浏览器。<a target='_blank' href='http://se.360.cn'>下载页面</a>";
-            if (window.console) {
-                window.console.log(error);
-            }
-            this.$elem.text(error);
-            return;
-        }
+        this.init();
+
 
         // this.files = new Array();
     }
@@ -61,14 +65,6 @@ class EasyWebUploader {
             fileNumLimit:this.fileNumLimit
         });
         this.theme.init(); //初始化页面效果
-        let uploader = this.create(); //创建上传类实例化
-        uploader.fileNum = this.theme.getFileCount();
-        this.theme.setUploader(uploader);
-        this.uploader = uploader;
-        this.initEvent();
-
-
-        this.$elem = this.theme.$elem;
         // if (uploader.fileNum >= this.fileNumLimit){
         //     // this.theme.hidePicker();
         // }
@@ -77,14 +73,128 @@ class EasyWebUploader {
 
     create(){
         // TODO 生成webuploader实例化
+
+        if (!WebUploader.Uploader.support()) {
+            var error = "上传控件不支持您的浏览器！请尝试升级flash版本或者使用Chrome引擎的浏览器。<a target='_blank' href='http://se.360.cn'>下载页面</a>";
+            if (window.console) {
+                window.console.log(error);
+            }
+            this.$elem.text(error);
+            return;
+        }
+        this.register();//注册事件
+
         this.webuploaderoptions = Object.assign(this.webuploaderoptions,this.options);
         // console.log(this.webuploader_options);
-        return WebUploader.create(this.webuploaderoptions);
+        this.uploader = WebUploader.create(this.webuploaderoptions);
+        this.uploader.fileNum = this.theme.getFileCount();
+        this.theme.setUploader(this.uploader);
+        this.initEvent();
+        this.$elem = this.theme.$elem;
+        return this;
+    }
+
+    register(){
+        let _this = this;
+        let md5Server = this.options.md5Server || "";
+        console.log(md5Server);
+        if (md5Server){
+
+            WebUploader.Uploader.register({
+                'before-send-file': 'beforeSendFile' //整个文件上传前
+            },{
+                init: function( options ) {},
+                beforeSendFile: function( file ) {
+                    var that = this;
+                    var deferred = WebUploader.Deferred();
+//                console.log(file);
+//                console.log(file.id)
+                    //上传前请求服务端,判断文件是否已经上传过
+                    // file.md5 =  md5[file.id]; // 用来判断上传的文件和源文件是否一致，有没有改过。 jpg图片 如果被压缩（创建组件时compress:false 则不会压缩），那么就可能不一致导致无法上传，这个时候可以不传md5，则不会验证 重要！！！
+                    $.post(md5Server, { md5:  file.md5 },
+                        function(response){
+//                            console.log("upload",response)
+
+                            console.log(file,"file md5Check");
+                            if (response[_this.options.response.statusName] == _this.options.response.statusCode.success) {
+                                // file.setStatus('complete');
+                                //跳过如果存在则跳过
+                                that.owner.skipFile( file );
+                                // alert(response.msg);
+
+                                // 秒传效果
+                                let msg = "";
+                                if(response && response[_this.options.response.msgName]){
+                                    msg = response[_this.options.response.msgName];
+                                }
+                                _this.theme.uploadSuccess(file,msg || "秒传");
+                                // 成功回调
+                                _this.options.success(_this.theme,file,response);
+                            }
+                            file.data = response[_this.options.response.dataName];
+                            // 继续后面行为
+                            deferred.resolve();
+                        });
+                    return deferred.promise();
+                }
+            })
+        }
+
+        let chunksMergeServer = this.options.chunksMergeServer || "";
+        if (chunksMergeServer){
+            WebUploader.Uploader.register({
+                "after-send-file": "afterSendFile"
+            },{
+                init: function( options ) {},
+                afterSendFile: function (file) {
+                    //合并文件
+                    console.log(file,"file 合并文件");
+                    let chunksTotal = 0;
+                    if (file.getStatus() != 'complete' && (chunksTotal = Math.ceil(file.size / _this.options.chunkSize)) >= 1) {
+                        //合并请求
+                        var deferred = WebUploader.Deferred();
+                        let data = {
+                            chunks: chunksTotal
+                            , name: file.source.name
+                            , ext: file.ext
+                            , md5:  file.md5
+                        };
+                        data = Object.assign(data,file.data);
+                        $.ajax({
+                            type: "POST"
+                            , url: chunksMergeServer
+                            , data: data
+                            , cache: false
+                            , dataType: "json"
+                        }).then(function (response, textStatus, jqXHR) {
+                            if (response[_this.options.response.statusName] == _this.options.response.statusCode.success) {
+                                deferred.resolve();
+                            } else {
+                                // 秒传效果
+                                let msg = "";
+                                if(response && response[_this.options.response.msgName]){
+                                    msg = response[_this.options.response.msgName];
+                                }
+                                _this.theme.uploadSuccess(file,msg || "上传成功");
+                                deferred.reject();
+                            }
+//                        console.log("chen2gg")
+                        }, function (jqXHR, textStatus, errorThrown) {
+                            deferred.reject();
+                        });
+
+                        return deferred.promise();
+                    }
+
+                }
+            });
+        }
     }
 
     initEvent(){
         this.beforeFileQueuedEvent();
         this.fileQueuedEvent();
+        this.uploadBeforeSendEvent();
         this.uploadProgressEvent();
         this.uploadSuccessEvent();
         this.uploadErrorEvent();
@@ -122,9 +232,26 @@ class EasyWebUploader {
             // console.log(_this.uploader.getFiles(),"当有文件添加进来的时候");
             _this.theme.fileQueued(file);
             _this.uploader.fileNum++;
+            _this.uploader.md5File( file )// 及时显示进度
+                .progress(function(percentage) {
+                    _this.theme.fileQueuedMd5FileProgress(file,percentage);
+                })
+                // 完成
+                .then(function(val) {
+                    file.md5 = val;
+                    // console.log("md5:",val)
+                });
         })
     }
-
+    uploadBeforeSendEvent(){
+        let _this = this;
+        this.uploader.on("uploadBeforeSend",function (block, data) {
+            data.md5 = block.file.md5;//md5
+            //唯一标识符，用作断点续传
+            data.uuid = block.file.uuid;
+            data._ajax = true;
+        });
+    }
     /**
      *
      */
@@ -138,8 +265,10 @@ class EasyWebUploader {
         // 文件上传成功
         let _this = this;
         this.uploader.on("uploadSuccess",function (file, res) {
-            _this.theme.uploadSuccess(file,res);
-            _this.options.success(_this.theme,file,res);
+            if(res){
+                _this.theme.uploadSuccess(file,res[_this.options.response.msgName]);
+                _this.options.success(_this.theme,file,res);
+            }
         });
     }
 
@@ -255,7 +384,7 @@ class EasyWebUploaderPicTheme{
         //TODO 生成html结构
         let addBtnTpl = '<div class="file-item-picker"> <div class="picker-btn">+</div> <div class="queued-message"></div></div>';
         this.$elem.html(addBtnTpl);
-        let value = this.getOriValue()
+        let value = this.getOriValue();
         if (value){
             for(let i in value){
                 value[i].name = value[i].name || value[i].url.substring(value[i].url.lastIndexOf("/")+1) || "";
@@ -342,14 +471,15 @@ class EasyWebUploaderPicTheme{
     /**
      * 上传成功
      * @param file
-     * @param res
+     * @param msg
      */
-    uploadSuccess(file, res){
-        if (res[this.options.response.statusName] == this.options.response.statusCode.success){
-            this.setSuccessMessage(file,res[this.options.response.msgName]);
-        }else{
-            this.setErrorMessage(file,res[this.options.response.msgName]);
-        }
+    uploadSuccess(file, msg){
+        // console.log("uploadSuccess",res,file.getStatus());
+        // let msg = "";
+        // if(res && res[this.options.response.msgName]){
+        //     msg = res[this.options.response.msgName];
+        // }
+        this.setSuccessMessage(file,msg);
     }
 
     /**
@@ -390,6 +520,19 @@ class EasyWebUploaderPicTheme{
         let _this = this;
         let tpl = this.renderItem(true,file);
     }
+
+    /**
+     * 读取文件md5进度显示
+     * @param file
+     * @param percentage
+     */
+    fileQueuedMd5FileProgress(file,percentage){
+        let $item = this.getItem(file);
+        this.setItemState(file,"queued"); //上传中状态标识
+        let $percent = $item.find('.file-progress .file-progress-bar');
+        $percent.css('width', percentage * 100 + '%');
+    }
+
 
     /**
      * 删除文件事件
