@@ -26,7 +26,10 @@
     </div>
     <div class="file-item-picker "><div class="picker-btn">+</div> <div class="queued-message">最多只能传3个</div></div>
 </div>
-<input type="file" name="pics" id="test2"  value="{ url:'mock/1.jpg',value:1 }" />
+<input type="file" name="pics" id="test2"  value="{ url:'mock/1.jpg',value:1 },{ url:'mock/1.jpg',value:2 }" />
+<!--
+<input type="file" name="pics" id="test2" />
+-->
 
 <script>
 
@@ -37,6 +40,7 @@ var w2 = new EasyWebUploader({
     fileNumLimit:3,
     chunked: true, //开启分块上传
     chunkSize: 1024,
+    chunkCheckServer:"mock/chunkCheck.json",
     chunksMergeServer:"mock/merge.json",//分片合并
     'success':function (obj,file,res) {
         console.log(res);

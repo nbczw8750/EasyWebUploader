@@ -3,9 +3,15 @@ class EasyWebUploader {
 
         this.options = {
             "elem": "",
-            success:null,
-            error:null,
-            complete:null,
+            success:function (obj,file,response) { //上传成功回调
+                
+            },
+            error:function (obj,file,response) { //上传失败回调
+                
+            },
+            complete:function (obj,file,response) { //上传完成回调
+                
+            },
             response:{
                 statusName:'code',
                 statusCode:{
@@ -64,10 +70,18 @@ class EasyWebUploader {
             elem: this.options.elem,
             fileNumLimit:this.fileNumLimit
         });
-        this.theme.init(); //初始化页面效果
-        // if (uploader.fileNum >= this.fileNumLimit){
-        //     // this.theme.hidePicker();
-        // }
+        this.theme.init(); //初始化页面效果 按钮
+
+        let data = this.theme.getOriValue(); //初始化数据
+        for(let i in data){
+            data[i].name = data[i].name || data[i].url.substring(data[i].url.lastIndexOf("/")+1) || "";
+
+            let file = new WebUploader.File(data[i]);
+            // //此处是关键，将文件状态改为'已上传完成'
+            file.setStatus('complete');
+            this.theme.renderItem(false,file); //初始化文件
+            this.theme.setData(file,data[i]); //初始化文件信息
+        }
     }
 
 
@@ -85,10 +99,10 @@ class EasyWebUploader {
         this.register();//注册事件
 
         this.webuploaderoptions = Object.assign(this.webuploaderoptions,this.options);
-        // console.log(this.webuploader_options);
         this.uploader = WebUploader.create(this.webuploaderoptions);
         this.uploader.fileNum = this.theme.getFileCount();
         this.theme.setUploader(this.uploader);
+        this.theme.setValue();//设置数据库存储的值
         this.initEvent();
         this.$elem = this.theme.$elem;
         return this;
@@ -97,7 +111,6 @@ class EasyWebUploader {
     register(){
         let _this = this;
         let md5Server = this.options.md5Server || "";
-        console.log(md5Server);
         if (md5Server){
 
             WebUploader.Uploader.register({
@@ -107,20 +120,14 @@ class EasyWebUploader {
                 beforeSendFile: function( file ) {
                     var that = this;
                     var deferred = WebUploader.Deferred();
-//                console.log(file);
-//                console.log(file.id)
                     //上传前请求服务端,判断文件是否已经上传过
                     // file.md5 =  md5[file.id]; // 用来判断上传的文件和源文件是否一致，有没有改过。 jpg图片 如果被压缩（创建组件时compress:false 则不会压缩），那么就可能不一致导致无法上传，这个时候可以不传md5，则不会验证 重要！！！
                     $.post(md5Server, { md5:  file.md5 },
                         function(response){
-//                            console.log("upload",response)
-
-                            console.log(file,"file md5Check");
                             if (response[_this.options.response.statusName] == _this.options.response.statusCode.success) {
                                 // file.setStatus('complete');
                                 //跳过如果存在则跳过
                                 that.owner.skipFile( file );
-                                // alert(response.msg);
 
                                 // 秒传效果
                                 let msg = "";
@@ -148,18 +155,15 @@ class EasyWebUploader {
                 init: function( options ) {},
                 afterSendFile: function (file) {
                     //合并文件
-                    console.log(file,"file 合并文件");
                     let chunksTotal = 0;
                     if (file.getStatus() != 'complete' && (chunksTotal = Math.ceil(file.size / _this.options.chunkSize)) >= 1) {
                         //合并请求
                         var deferred = WebUploader.Deferred();
-                        let data = {
-                            chunks: chunksTotal
-                            , name: file.source.name
-                            , ext: file.ext
-                            , md5:  file.md5
-                        };
-                        data = Object.assign(data,file.data);
+                        let data = file.data;
+                        data.chunks = chunksTotal;
+                        data.name = file.source.name;
+                        data.ext = file.ext;
+                        data.md5 = file.md5;
                         $.ajax({
                             type: "POST"
                             , url: chunksMergeServer
@@ -178,7 +182,6 @@ class EasyWebUploader {
                                 _this.theme.uploadSuccess(file,msg || "上传成功");
                                 deferred.reject();
                             }
-//                        console.log("chen2gg")
                         }, function (jqXHR, textStatus, errorThrown) {
                             deferred.reject();
                         });
@@ -189,6 +192,42 @@ class EasyWebUploader {
                 }
             });
         }
+
+        let chunkCheckServer = this.options.chunkCheckServer || "";
+        if (chunkCheckServer){
+            WebUploader.Uploader.register({
+                "before-send": "beforeSend"
+            },{
+                init: function( options ) {},
+                beforeSend: function (block) {
+                    //分片验证是否已传过，用于断点续传
+                    var deferred = WebUploader.Deferred();
+                    let data = block.file.data; // 唯一标识符，用作断点续传 file.data.uuid
+                    data.name = block.file.source.name;
+                    data.chunk = block.chunk;
+                    data.ext = block.file.ext;
+                    data.size = block.end - block.start;
+
+                    $.ajax({
+                        type: "POST"
+                        , url: chunkCheckServer
+                        , data: data
+                        , cache: false
+                        , dataType: "json"
+                    }).then(function (response, textStatus, jqXHR) {
+                        if (response[_this.options.response.statusName] == _this.options.response.statusCode.success) { //未上传 检测通过
+                            deferred.resolve(); // 继续后面行为
+                        } else {
+                            deferred.reject();
+                        }
+                    }, function (jqXHR, textStatus, errorThrown) {    //任何形式的验证失败，都触发重新上传
+                        deferred.resolve();
+                    });
+
+                    return deferred.promise();
+                }
+            })
+        }
     }
 
     initEvent(){
@@ -196,6 +235,7 @@ class EasyWebUploader {
         this.fileQueuedEvent();
         this.uploadBeforeSendEvent();
         this.uploadProgressEvent();
+        this.uploadAcceptEvent();
         this.uploadSuccessEvent();
         this.uploadErrorEvent();
         this.uploadCompleteEvent();
@@ -209,9 +249,7 @@ class EasyWebUploader {
     beforeFileQueuedEvent(){
         let _this = this;
         this.uploader.on("beforeFileQueued",function (file) {
-            // console.log( _this.uploader.fileNum," >=", _this.fileNumLimit);
             if (_this.fileNumLimit && _this.uploader.fileNum >= _this.fileNumLimit){
-                // console.log("超数量")
                 _this.theme.setQueueErrorMessage("超过最大上传数量"+_this.fileNumLimit);
                 return false;
             }else if(this.fileNumLimit && this.uploader.fileNum + 1 == this.fileNumLimit){
@@ -227,9 +265,6 @@ class EasyWebUploader {
     fileQueuedEvent(){
         let _this = this;
         this.uploader.on("fileQueued",function (file) {
-            // console.log("当有文件添加进来的时候",file)
-            // console.log(_this.getFiles().length,">",_this.fileNumLimit)
-            // console.log(_this.uploader.getFiles(),"当有文件添加进来的时候");
             _this.theme.fileQueued(file);
             _this.uploader.fileNum++;
             _this.uploader.md5File( file )// 及时显示进度
@@ -239,21 +274,20 @@ class EasyWebUploader {
                 // 完成
                 .then(function(val) {
                     file.md5 = val;
-                    // console.log("md5:",val)
                 });
         })
     }
     uploadBeforeSendEvent(){
         let _this = this;
         this.uploader.on("uploadBeforeSend",function (block, data) {
+            data = block.file.data; // 唯一标识符，用作断点续传 file.data.uuid
             data.md5 = block.file.md5;//md5
-            //唯一标识符，用作断点续传
-            data.uuid = block.file.uuid;
             data._ajax = true;
+
         });
     }
     /**
-     *
+     * 上传进度事件
      */
     uploadProgressEvent(){
         let _this = this;
@@ -261,12 +295,28 @@ class EasyWebUploader {
             _this.theme.uploadProgress(file,percentage);
         })
     }
+
+    /**
+     * 上传分片返回数据
+     */
+    uploadAcceptEvent(){
+        let _this = this;
+        this.uploader.on("uploadAccept",function (file, res) {
+            if(res[_this.options.response.statusName] == _this.options.response.statusCode.success){
+                return true;
+            }else{
+                return false;
+            }
+        });
+    }
     uploadSuccessEvent(){
         // 文件上传成功
         let _this = this;
         this.uploader.on("uploadSuccess",function (file, res) {
             if(res){
                 _this.theme.uploadSuccess(file,res[_this.options.response.msgName]);
+                _this.theme.setData(file,res[_this.options.response.dataName]);//设置回调的data值
+                _this.theme.setValue();
                 _this.options.success(_this.theme,file,res);
             }
         });
@@ -278,7 +328,6 @@ class EasyWebUploader {
     uploadCompleteEvent(){
         let _this = this;
         this.uploader.on("uploadComplete",function (file) {
-            // console.log("文件上传完成时触发",file)
             _this.theme.uploadComplete(file);
             _this.options.complete(_this.theme,file);
         });
@@ -289,13 +338,14 @@ class EasyWebUploader {
      */
     errorEvent(){
         this.uploader.on("error",function (type) {
-            console.log(type,"type");
+            if (window.console) {
+                window.console.log(type);
+            }
         })
     }
     uploadErrorEvent(){
         let _this = this;
         this.uploader.on("uploadError",function (file,reason) {
-            // console.log(file,reason,"uploadError");
             _this.theme.uploadError(file,reason);
             _this.options.error(_this.theme,file,reason);
         })
@@ -319,26 +369,15 @@ class EasyWebUploaderPicTheme{
         };
         this.options = {
             elem :"",
-            "tpl": {
-                "item": '<div class="file-item" >'
-                            +'<div class="file-header">'
-                                +'<div class="file-info" title="{{ name }}">{{ name }}</div>'
-                                +'<a class="file-delete">×</a>'
-                            +'</div>'
-                            +'<div class="file-preview"></div>'
-                            +'<div class="file-progress"><div class="file-progress-bar"></div></div>'
-                            +'<div class="file-message"></div>'
-                        +'</div>',
-            },
-            response:{
-                statusName:'code',
-                statusCode:{
-                    success:1,
-                    error:0
-                },
-                msgName:'msg',
-                dataName:'data'
-            }
+            "tpl": '<div class="file-item" >'
+                        +'<div class="file-header">'
+                            +'<div class="file-info" title="{{ name }}">{{ name }}</div>'
+                            +'<a class="file-delete">×</a>'
+                        +'</div>'
+                        +'<div class="file-preview"></div>'
+                        +'<div class="file-progress"><div class="file-progress-bar"></div></div>'
+                        +'<div class="file-message"></div>'
+                    +'</div>'
         };
         this.options = Object.assign(this.options,opts);
         this.uploader = null;
@@ -351,18 +390,23 @@ class EasyWebUploaderPicTheme{
         $widget.attr("value",this.$elem.attr("value"));
         if (this.$elem.attr("name")){
             $widget.append("<input name='"+this.$elem.attr("name")+"' type='hidden'>");
-            this.options.name = this.$elem.attr("name");
+            $widget.attr("name",this.$elem.attr("name"));
         }
         this.$elem.replaceWith($widget);
         this.$elem = $widget;
+
+
         this.build();
         return this
     }
 
+    /**
+     * 获取原始数据
+     * @returns {*}
+     */
     getOriValue(){
         let value = this.$elem.attr("value");
         if (value){
-            // console.log(value,"value")
             if (value.substring(0, 1) != '['){
                 value = '[' + value + ']';
             }
@@ -383,23 +427,21 @@ class EasyWebUploaderPicTheme{
     build(){
         //TODO 生成html结构
         let addBtnTpl = '<div class="file-item-picker"> <div class="picker-btn">+</div> <div class="queued-message"></div></div>';
-        this.$elem.html(addBtnTpl);
-        let value = this.getOriValue();
-        if (value){
-            for(let i in value){
-                value[i].name = value[i].name || value[i].url.substring(value[i].url.lastIndexOf("/")+1) || "";
-                let file = new WebUploader.File(value[i]);
-                // //此处是关键，将文件状态改为'已上传完成'
-                file.setStatus('complete');
-                this.renderItem(false,file);
-            }
-
-            // console.log(this.getFileCount()," >=", this.fileNumLimit)
-            // if (this.getFileCount() >= this.fileNumLimit){
-            //     this.hidePicker();
-            // }
-        }
+        this.$elem.append(addBtnTpl);
+        // let value = this.getOriValue();
+        // if (value){
+        //     for(let i in value){
+        //         value[i].name = value[i].name || value[i].url.substring(value[i].url.lastIndexOf("/")+1) || "";
+        //         let file = new WebUploader.File(value[i]);
+        //         // //此处是关键，将文件状态改为'已上传完成'
+        //         file.setStatus('complete');
+        //         this.renderItem(false,file);
+        //         this.setData(file,value);
+        //     }
+        //
+        // }
     }
+
     getFileCount(){
         return this.$elem.find(".file-item").length || 0;
     }
@@ -474,11 +516,6 @@ class EasyWebUploaderPicTheme{
      * @param msg
      */
     uploadSuccess(file, msg){
-        // console.log("uploadSuccess",res,file.getStatus());
-        // let msg = "";
-        // if(res && res[this.options.response.msgName]){
-        //     msg = res[this.options.response.msgName];
-        // }
         this.setSuccessMessage(file,msg);
     }
 
@@ -542,11 +579,10 @@ class EasyWebUploaderPicTheme{
         let $item = this.getItem(file);
         $item.remove();
         if(this.uploader) {
-            // console.log(file.id);
             this.uploader.removeFile(file, true);
             this.uploader.fileNum--;
-            // this.showPicker();
         }
+        this.setValue();
     }
     /**
      * 处理文件的预览效果
@@ -556,10 +592,9 @@ class EasyWebUploaderPicTheme{
      */
     renderItem(isFile,data){
         let _this = this;
-        let str = this.options.tpl.item;
+        let str = this.options.tpl;
         let $item = $(str);
         let name = data.name || "";
-        // console.log(data,"data")
         let $preview = "";
         if (!isFile) {
             if(/(.jpg|.png|.gif|.bmp|.jpeg)$/.test(name.toLocaleLowerCase())) {
@@ -609,7 +644,31 @@ class EasyWebUploaderPicTheme{
             $item.find("a").attr("href",url);
         }
     }
-    setValue(file,value){
 
+    /**
+     * 在元素上设置文件信息值
+     * @param file
+     * @param data
+     */
+    setData(file,data){
+        if(file){
+            let $item = this.getItem(file);
+            $item.data(data);
+        }
+
+    }
+
+    /**
+     * 设置表单提交值
+     */
+    setValue(){
+        let items = this.$elem.children(".file-item");
+        let values = new Array();
+        items.each(function (i,n) {
+            let data = $(this).data();
+            data.value && values.push(data.value);
+        });
+        // this.$elem.find(".file-item").data("value");
+        this.$elem.find("input[type=hidden]").val(values.join());
     }
 }
