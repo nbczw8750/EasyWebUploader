@@ -67,3 +67,54 @@ EasyWebUploader参数的说明
 |chunkSize|每块大小，同webuploader|
 |chunkCheckServer|断点续传，地址，如果不填则不支持断点续传|
 |chunksMergeServer|分片合并地址，如果不填则无法完成合并|
+
+
+## 服务端返回格式
+
+md5Server返回格式如下：
+```
+{
+  "code":1,
+  "data":{
+    "value":2,
+    "uuid":2121321313
+  }
+}
+```
+- code=1表示服务端已存在相同的文件，秒传
+- data.uuid 表示服务器上文件的唯一值 ,uuid健名由服务端命名，在后续的分片上传时服务器端用来识别是否是同一个文件的分片
+
+server返回格式如下：
+```
+{
+  "code":1,
+  "data":{
+    "value":1
+
+  }
+}
+```
+code=1表示整个文件在服务端已上传成功
+
+chunkCheckServer返回格式如下：
+```
+{
+  "code":1,
+  "data":{
+    "value":2
+  }
+}
+```
+code=1表示整个文件在服务端该分片已上传过了，无需上传。
+
+
+chunksMergeServer返回格式如下：
+```
+{
+  "code":1,
+  "data":{
+    "value":2
+  }
+}
+```
+code=1表示在服务器端所有已上传的分片成功合成了一个完整的文件。

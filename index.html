@@ -13,70 +13,127 @@
 <body>
 
 <div id="uploader" class="easywebuploader  ">
-    <div class="file-item progress" id="1"><div class="file-header"><div class="file-info" title="14405245.gif">14405245.gif</div><a class="file-delete">×</a></div><div class="file-preview"><img src="mock/1.jpg"></div><div class="file-progress"><div class="file-progress-bar" style="width: 100%;"></div></div></div>
+    <div class="file-item queued" id="0">
+        <div class="file-header">
+            <div class="file-info" title="14405245.gif">14405245.gif</div>
+            <a class="file-delete">×</a></div>
+        <div class="file-preview"><img src="mock/1.jpg"></div>
+        <div class="file-progress">
+            <div class="file-progress-bar" ></div>
+        </div>
+        <div class="file-message file-message-info">计算文件中</div>
+    </div>
+    <div class="file-item queued" id="1">
+        <div class="file-header">
+            <div class="file-info" title="14405245.gif">14405245.gif</div>
+            <a class="file-delete">×</a></div>
+        <div class="file-preview"><img src="mock/1.jpg"></div>
+        <div class="file-progress">
+            <div class="file-progress-bar" style="width: 60%;"></div>
+        </div>
+        <div class="file-message file-message-info">等待上传</div>
+    </div>
+    <div class="file-item progress" id="2">
+        <div class="file-header">
+            <div class="file-info" title="14405245.gif">14405245.gif</div>
+            <a class="file-delete">×</a></div>
+        <div class="file-preview"><img src="mock/1.jpg"></div>
+        <div class="file-progress">
+            <div class="file-progress-bar" style="width: 90%;"></div>
+            <b class="file-progress-percent">10%</b>
+            <div class="file-message file-message-info">等待上传</div>
+        </div>
+    </div>
+    <div class="file-item progress" id="3">
+        <div class="file-header">
+            <div class="file-info" title="14405245.gif">14405245.gif</div>
+            <a class="file-delete">×</a></div>
+        <div class="file-preview"><a href="">不能预览</a> </div>
+        <div class="file-progress">
+            <div class="file-progress-bar" style="width: 90%;"></div>
+            <b class="file-progress-percent">10%</b>
+        </div>
+    </div>
+    <div class="file-item complete" id="4">
+        <div class="file-header">
+            <div class="file-info" title="14405245.gif">14405245.gif</div>
+            <a class="file-delete">×</a></div>
+        <div class="file-preview"><img src="mock/1.jpg"></div>
+        <div class="file-progress">
+            <div class="file-progress-bar" style="width: 0%;"></div>
+            <b class="file-progress-percent">100%</b>
+        </div>
+        <div class="file-message file-message-success">上传成功</div>
+    </div>
 
-    <div class="file-item queued" >
+    <div class="file-item queued">
         <div class="file-header">
             <div class="file-info" title="14243242342341dfsdfds.jpg">14243242342341dfsdfds.jpg</div>
             <a class="file-delete">×</a>
         </div>
-        <div class="file-progress"><div class="file-progress-bar" style="width: 100%;"></div></div>
+        <div class="file-progress">
+            <div class="file-progress-bar" style="width: 100%;"></div>
+            <b class="file-progress-percent">10%</b></div>
         <div class="file-message file-message-info">读取文件：50%</div>
         <div class="file-preview">不能预览</div>
     </div>
-    <div class="file-item-picker "><div class="picker-btn">+</div> <div class="queued-message">最多只能传3个</div></div>
+    <div class="file-item-picker ">
+        <div class="picker-btn">+</div>
+        <div class="queued-message">最多只能传3个</div>
+    </div>
 </div>
-<input type="file" name="pics" id="test1"  value="{ url:'mock/1.jpg',value:1 },{ url:'mock/1.jpg',value:2 }" />
+<input type="file" name="pics" id="test1" value="{ url:'mock/1.jpg',value:1 },{ url:'mock/1.jpg',value:2 }"/>
 <!--
 <input type="file" name="pics" id="test2" />
 -->
 
-<input type="file" name="pics" id="test2"  value="{ url:'mock/1.jpg',value:1 },{ url:'mock/chunkCheck.json',value:2 }" />
-<input type="file" name="pics" id="test3"  value="{ url:'mock/1.jpg',value:1 },{ url:'mock/chunkCheck.json',value:2 }" />
+<input type="file" name="pics" id="test2" value="{ url:'mock/1.jpg',value:1 },{ url:'mock/chunkCheck.json',value:2 }"/>
+<input type="file" name="pics" id="test3" value="{ url:'mock/1.jpg',value:1 },{ url:'mock/chunkCheck.json',value:2 }"/>
 
 <script>
     new EasyWebUploader({
-        "elem":"#test1"
+        "elem": "#test1"
     }).show();
 
     var w2 = new EasyWebUploader({
-        'elem':"#test2",
-        server:"mock/upload.json",
-        md5Server:"mock/md5.json",
-        fileNumLimit:3,
+        'elem': "#test2",
+        auto:true,
+        server: "mock/upload.json",
+        md5Server: "mock/md5.json",
+        fileNumLimit: 3,
         chunked: true, //开启分块上传
-        chunkSize: 1024,
-        chunkCheckServer:"mock/chunkCheck.json",
-        chunksMergeServer:"mock/merge.json",//分片合并
-        'success':function (obj,file,res) {
+        chunkSize: 1024*1024*2,
+        chunkCheckServer: "mock/chunkCheck.json",
+        chunksMergeServer: "mock/merge.json",//分片合并
+        'success': function (obj, file, res) {
             console.log(res);
 
         },
-        'error' : function () {
+        'error': function () {
 
         },
-        'complete':function () {
+        'complete': function () {
 
         }
     }).create();
 
     var w3 = new EasyWebUploader({
-        'elem':"#test3",
-        server:"mock/upload.json",
-        md5Server:"mock/md5.json",
-        fileNumLimit:3,
+        'elem': "#test3",
+        server: "mock/upload.json",
+        md5Server: "mock/md5.json",
+        fileNumLimit: 3,
         chunked: true, //开启分块上传
         chunkSize: 1024,
-        chunkCheckServer:"mock/chunkCheck.json",
-        chunksMergeServer:"mock/merge.json",//分片合并
-        'success':function (obj,file,res) {
+        chunkCheckServer: "mock/chunkCheck.json",
+        chunksMergeServer: "mock/merge.json",//分片合并
+        'success': function (obj, file, res) {
             console.log(res);
 
         },
-        'error' : function () {
+        'error': function () {
 
         },
-        'complete':function () {
+        'complete': function () {
 
         }
     }).create();

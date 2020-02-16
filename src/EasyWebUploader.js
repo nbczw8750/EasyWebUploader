@@ -140,28 +140,41 @@ class EasyWebUploader {
                 beforeSendFile: function( file ) {
                     var that = this;
                     var deferred = WebUploader.Deferred();
-                    //上传前请求服务端,判断文件是否已经上传过
-                    // file.md5 =  md5[file.id]; // 用来判断上传的文件和源文件是否一致，有没有改过。 jpg图片 如果被压缩（创建组件时compress:false 则不会压缩），那么就可能不一致导致无法上传，这个时候可以不传md5，则不会验证 重要！！！
-                    $.post(md5Server, { md5:  file.md5 },
-                        function(response){
-                            if (response[_this.options.response.statusName] == _this.options.response.statusCode.success) {
-                                // file.setStatus('complete');
-                                //跳过如果存在则跳过
-                                that.owner.skipFile( file );
 
-                                // 秒传效果
-                                let msg = "";
-                                if(response && response[_this.options.response.msgName]){
-                                    msg = response[_this.options.response.msgName];
-                                }
-                                _this.theme.uploadSuccess(file,msg || "秒传");
-                                // 成功回调
-                                _this.options.success(_this.theme,file,response);
-                            }
-                            file.data = response[_this.options.response.dataName];
-                            // 继续后面行为
-                            deferred.resolve();
+                    _this.uploader.md5File( file )// 及时显示进度
+                        .progress(function(percentage) {
+                            _this.theme.fileQueuedMd5FileProgress(file,percentage);
+                        })
+                        // 完成
+                        .then(function(val) {
+                            file.md5 = val;
+
+                            //上传前请求服务端,判断文件是否已经上传过
+                            // file.md5 =  md5[file.id]; // 用来判断上传的文件和源文件是否一致，有没有改过。 jpg图片 如果被压缩（创建组件时compress:false 则不会压缩），那么就可能不一致导致无法上传，这个时候可以不传md5，则不会验证 重要！！！
+                            $.post(md5Server, { md5:  file.md5 },
+                                function(response){
+                                    if (response[_this.options.response.statusName] == _this.options.response.statusCode.success) {
+                                        // file.setStatus('complete');
+                                        //跳过如果存在则跳过
+                                        that.owner.skipFile( file );
+
+                                        // 秒传效果
+                                        let msg = "";
+                                        if(response && response[_this.options.response.msgName]){
+                                            msg = response[_this.options.response.msgName];
+                                        }
+                                        _this.theme.uploadSuccess(file,msg || "秒传");
+                                        _this.theme.setData(file,response[_this.options.response.dataName]);//设置回调的data值
+                                        _this.theme.setValue();
+                                        // 成功回调
+                                        _this.options.success(_this.theme,file,response);
+                                    }
+                                    file.data = response[_this.options.response.dataName];
+                                    // 继续后面行为
+                                    deferred.resolve();
+                                });
                         });
+
                     return deferred.promise();
                 }
             })
@@ -193,13 +206,16 @@ class EasyWebUploader {
                         }).then(function (response, textStatus, jqXHR) {
                             if (response[_this.options.response.statusName] == _this.options.response.statusCode.success) {
                                 deferred.resolve();
-                            } else {
-                                // 秒传效果
                                 let msg = "";
                                 if(response && response[_this.options.response.msgName]){
                                     msg = response[_this.options.response.msgName];
                                 }
                                 _this.theme.uploadSuccess(file,msg || "上传成功");
+                                _this.theme.setData(file,response[_this.options.response.dataName]);//设置回调的data值
+                                _this.theme.setValue();
+                                // 成功回调
+                                _this.options.success(_this.theme,file,response);
+                            } else {
                                 deferred.reject();
                             }
                         }, function (jqXHR, textStatus, errorThrown) {
@@ -235,10 +251,10 @@ class EasyWebUploader {
                         , cache: false
                         , dataType: "json"
                     }).then(function (response, textStatus, jqXHR) {
-                        if (response[_this.options.response.statusName] == _this.options.response.statusCode.success) { //未上传 检测通过
-                            deferred.resolve(); // 继续后面行为
-                        } else {
+                        if (response[_this.options.response.statusName] == _this.options.response.statusCode.success) { //已上传 检测通过
                             deferred.reject();
+                        } else {
+                            deferred.resolve(); // 继续后面行为
                         }
                     }, function (jqXHR, textStatus, errorThrown) {    //任何形式的验证失败，都触发重新上传
                         deferred.resolve();
@@ -287,14 +303,6 @@ class EasyWebUploader {
         this.uploader.on("fileQueued",function (file) {
             _this.theme.fileQueued(file);
             _this.uploader.fileNum++;
-            _this.uploader.md5File( file )// 及时显示进度
-                .progress(function(percentage) {
-                    _this.theme.fileQueuedMd5FileProgress(file,percentage);
-                })
-                // 完成
-                .then(function(val) {
-                    file.md5 = val;
-                });
         })
     }
     uploadBeforeSendEvent(){
@@ -395,7 +403,7 @@ class EasyWebUploaderPicTheme{
                             +'<a class="file-delete">×</a>'
                         +'</div>'
                         +'<div class="file-preview"></div>'
-                        +'<div class="file-progress"><div class="file-progress-bar"></div></div>'
+                        +'<div class="file-progress"><div class="file-progress-bar"></div><b class="file-progress-percent"></b></div>'
                         +'<div class="file-message"></div>'
                     +'</div>'
         };
@@ -475,6 +483,15 @@ class EasyWebUploaderPicTheme{
         }
         $item.addClass(this._fileStatus[state]);
     }
+    /**
+     * 设置上传成功描述
+     * @param file
+     * @param msg
+     */
+    setInfoMessage(file,msg){
+        let $item = this.getItem(file);
+        $item.find(".file-message").show().removeClass().addClass("file-message file-message-info").text(msg || "等待上传");
+    }
 
     /**
      * 设置上传成功描述
@@ -483,7 +500,7 @@ class EasyWebUploaderPicTheme{
      */
     setSuccessMessage(file,msg){
         let $item = this.getItem(file);
-        $item.find(".file-message").show().addClass("file-message-success").text(msg || "上传成功");
+        $item.find(".file-message").show().removeClass().addClass("file-message file-message-success").text(msg || "上传成功");
     }
 
     /**
@@ -493,7 +510,7 @@ class EasyWebUploaderPicTheme{
      */
     setErrorMessage(file,msg){
         let $item = this.getItem(file);
-        $item.find(".file-message").show().addClass("file-message-error").text(msg || "上传失败");
+        $item.find(".file-message").show().removeClass().addClass("file-message file-message-error").text(msg || "上传失败");
     }
 
     /**
@@ -551,7 +568,8 @@ class EasyWebUploaderPicTheme{
         let $item = this.getItem(file);
         this.setItemState(file,"progress"); //上传中状态标识
         let $percent = $item.find('.file-progress .file-progress-bar');
-        $percent.css('width', percentage * 100 + '%');
+        $percent.css('width', (1-percentage)  * 100+ '%');
+        $item.find('.file-progress .file-progress-percent').text(parseInt(percentage*100)+'%');
     }
 
     /**
@@ -571,6 +589,8 @@ class EasyWebUploaderPicTheme{
     fileQueued(file){
         let _this = this;
         let tpl = this.renderItem(true,file);
+        _this.setItemState(file,"queued"); //上传中状态标识
+        _this.setInfoMessage(file,"等待上传");
     }
 
     /**
@@ -580,9 +600,10 @@ class EasyWebUploaderPicTheme{
      */
     fileQueuedMd5FileProgress(file,percentage){
         let $item = this.getItem(file);
-        this.setItemState(file,"queued"); //上传中状态标识
         let $percent = $item.find('.file-progress .file-progress-bar');
-        $percent.css('width', percentage * 100 + '%');
+
+        this.setInfoMessage(file,"读取文件"+parseInt(percentage * 100)+ '%');
+        // this.css('width', (1-percentage ) * 100 + '%');
     }
 
 
