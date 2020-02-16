@@ -1,5 +1,7 @@
 # EasyWebUploader
 
+![image](doc/xiaoguo.png)
+
 ## 使用说明
 ### 上传
 html页面

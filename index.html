@@ -32,32 +32,54 @@
 -->
 
 <input type="file" name="pics" id="test2"  value="{ url:'mock/1.jpg',value:1 },{ url:'mock/chunkCheck.json',value:2 }" />
+<input type="file" name="pics" id="test3"  value="{ url:'mock/1.jpg',value:1 },{ url:'mock/chunkCheck.json',value:2 }" />
 
 <script>
     new EasyWebUploader({
         "elem":"#test1"
     }).show();
 
-var w2 = new EasyWebUploader({
-    'elem':"#test2",
-    server:"mock/upload.json",
-    md5Server:"mock/md5.json",
-    fileNumLimit:3,
-    chunked: true, //开启分块上传
-    chunkSize: 1024,
-    chunkCheckServer:"mock/chunkCheck.json",
-    chunksMergeServer:"mock/merge.json",//分片合并
-    'success':function (obj,file,res) {
-        console.log(res);
+    var w2 = new EasyWebUploader({
+        'elem':"#test2",
+        server:"mock/upload.json",
+        md5Server:"mock/md5.json",
+        fileNumLimit:3,
+        chunked: true, //开启分块上传
+        chunkSize: 1024,
+        chunkCheckServer:"mock/chunkCheck.json",
+        chunksMergeServer:"mock/merge.json",//分片合并
+        'success':function (obj,file,res) {
+            console.log(res);
 
-    },
-    'error' : function () {
+        },
+        'error' : function () {
 
-    },
-    'complete':function () {
-        
-    }
-}).create();
+        },
+        'complete':function () {
+
+        }
+    }).create();
+
+    var w3 = new EasyWebUploader({
+        'elem':"#test3",
+        server:"mock/upload.json",
+        md5Server:"mock/md5.json",
+        fileNumLimit:3,
+        chunked: true, //开启分块上传
+        chunkSize: 1024,
+        chunkCheckServer:"mock/chunkCheck.json",
+        chunksMergeServer:"mock/merge.json",//分片合并
+        'success':function (obj,file,res) {
+            console.log(res);
+
+        },
+        'error' : function () {
+
+        },
+        'complete':function () {
+
+        }
+    }).create();
 </script>
 </body>
 </html>
